@@ -7,7 +7,7 @@ library(Metrics)
 
 # original data exploration
 
-data <- read.csv('./data_preprocessed/cleaned_data_elbilar.csv')
+data <- read.csv('~/Documents/EC_utbildning/R/regression_analysis_R/data_preprocessed/cleaned_data_elbilar.csv')
 summary(data)
 names(data)
 
@@ -20,7 +20,7 @@ plot(Pris~I(Miltal), data=data)
 
 
 base_model_el = lm(Pris ~., data = data)
-summary(fit_base_model)
+summary(base_model_el)
 
 
 par(mfrow=c(2,2))
@@ -70,7 +70,7 @@ data[81, ]
 # vif(int_model_el_outl)
 
 ### Alternative dataset
-data_l <- read.csv('./data_preprocessed/skrapning_v3_cleaned.csv')
+data_l <- read.csv('~/Documents/EC_utbildning/R/regression_analysis_R/data_preprocessed/skrapning_v3_cleaned.csv')
 summary(data_l)
 names(data_l)
 data_l_filtered <- subset(data_l, Price > 20000)
@@ -82,6 +82,8 @@ hist(data_l_clean$Price)
 hist(data_l_clean$Horsepower)
 hist(data_l_clean$Year)
 hist(data_l_clean$Miles)
+hist(log(data_l_clean$Miles))
+
 
 frequency_table <- table(data_l_clean$Location)
 print(frequency_table)
@@ -92,15 +94,26 @@ par(mfrow=c(2,2))
 plot(model_l)
 vif(model_l)
 
+cor(data_l_clean$Miles, data_l_clean$Year)
+### Creating additional features
+
+# Adding an age column
+data_l_clean$Age <- 2024 - data_l_clean$Year
+
+plot(Price~Age, data=data_l_clean)
+plot(Price~I(Age*Miles), data=data_l_clean)
+plot(Price~log(Age), data=data_l_clean)
+plot(Price~I(Miles/Age), data=data_l_clean)
+
 ### adjusting model
-model_l_int = lm(Price ~.-Brand-Model-Engine.Volume-Name-Company+Horsepower:Year+Miles:Year, data = data_l_clean) #
+model_l_int = lm(Price ~.-Brand-Model-Engine.Volume-Name-Company-Year+Horsepower:Age+Miles:Age, data = data_l_clean) #Include Miles per Year include miles from manufacturing
 summary(model_l_int)
 par(mfrow=c(2,2))
 plot(model_l_int)
 vif(model_l_int)
+anova(model_l_int)
 
-
-model_l_log = lm(I(log(Price)) ~.-X-Brand-Model-Engine.Volume-Name-Company+Miles:Year, data = data_l_clean) #
+model_l_log = lm(I(log(Price)) ~.-X-Brand-Model-Engine.Volume-Name-Company-Year+Miles:Age, data = data_l_clean) #
 summary(model_l_log)
 
 plot(model_l_log)
@@ -113,7 +126,7 @@ hist(log(data_l_clean$Price))
 
 ### Adding variables from external dataset
 
-external_data <- read.csv("medeinkomst.csv")
+external_data <- read.csv("~/Documents/EC_utbildning/R/regression_analysis_R/data_preprocessed/medeinkomst.csv")
 external_data
 medel_inkomst_lan <- external_data[grepl("län", external_data$region), ]
 medel_inkomst_lan
@@ -162,13 +175,29 @@ summary(data_l_clean_1)
 
 # with numerical variable instead of categorical for Location
 
-model_l_log_ext = lm(I(log(Price)) ~.-X-Brand-Model-Engine.Volume-Name-Company-Location+Miles:Year, data = data_l_clean_1) #
+model_l_log_ext = lm(I(log(Price)) ~.-X-Brand-Model-Engine.Volume-Name-Company-Location-Year+Miles:Age, data = data_l_clean_1) #
 summary(model_l_log_ext)
 par(mfrow=c(2,2))
 plot(model_l_log_ext)
 vif(model_l_log_ext)
 
 
+
+### Plot the data, to check different assumptions. 
+
+#Predict the values using the fitted model
+predicted_values <- predict(model_l_log_ext, data_l_clean_1)
+
+# Step 4: Create a new dataframe for plotting
+plot_data <- data.frame(True_Pris = log(data_l_clean_1$Price), Predicted_Price = predicted_values, Location = data_l_clean_1$Location)
+
+# Step 5: Plot the true values vs. the predicted values
+library(ggplot2)
+ggplot(plot_data, aes(x = True_Pris, y = Predicted_Price, color = Location)) + 
+  geom_point() + 
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "red") +
+  labs(x = "Log True Prices", y = "Log Predicted Prices", title = "True vs. Predicted Prices by Location") +
+  theme_minimal()
 
 
 
